@@ -4,6 +4,9 @@ This step takes the best model, tagged with the "prod" tag, and tests it against
 """
 import argparse
 import logging
+import os
+import glob as _glob
+import tempfile
 import wandb
 import mlflow
 import pandas as pd
@@ -24,10 +27,16 @@ def go(args):
     logger.info("Downloading artifacts")
     # Download input artifact. This will also log that this script is using this
     # particular version of the artifact
-    model_local_path = run.use_artifact(args.mlflow_model).download()
+    _model_art = run.use_artifact(args.mlflow_model)
+    _model_tmp = tempfile.mkdtemp(prefix="wb_model_")
+    model_local_path = _model_art.download(root=_model_tmp)
 
     # Download test dataset
-    test_dataset_path = run.use_artifact(args.test_dataset).file()
+    _test_art = run.use_artifact(args.test_dataset)
+    _test_tmp = tempfile.mkdtemp(prefix="wb_test_")
+    _test_dir = _test_art.download(root=_test_tmp)
+    _test_csvs = _glob.glob(os.path.join(_test_dir, "*.csv"))
+    test_dataset_path = _test_csvs[0]
 
     # Read test dataset
     X_test = pd.read_csv(test_dataset_path)

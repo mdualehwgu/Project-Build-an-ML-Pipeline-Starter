@@ -4,6 +4,8 @@ This script splits the provided dataframe in test and remainder
 """
 import argparse
 import logging
+import os
+import glob as _glob
 import pandas as pd
 import wandb
 import tempfile
@@ -22,7 +24,11 @@ def go(args):
     # Download input artifact. This will also note that this script is using this
     # particular version of the artifact
     logger.info(f"Fetching artifact {args.input}")
-    artifact_local_path = run.use_artifact(args.input).file()
+    _art = run.use_artifact(args.input)
+    _tmp = tempfile.mkdtemp(prefix="wb_split_")
+    _dir = _art.download(root=_tmp)
+    _csvs = _glob.glob(os.path.join(_dir, "*.csv"))
+    artifact_local_path = _csvs[0]
 
     df = pd.read_csv(artifact_local_path)
 
@@ -37,17 +43,16 @@ def go(args):
     # Save to output files
     for df, k in zip([trainval, test], ['trainval', 'test']):
         logger.info(f"Uploading {k}_data.csv dataset")
-        with tempfile.NamedTemporaryFile("w") as fp:
-
-            df.to_csv(fp.name, index=False)
-
-            log_artifact(
-                f"{k}_data.csv",
-                f"{k}_data",
-                f"{k} split of dataset",
-                fp.name,
-                run,
-            )
+        _out_dir = tempfile.mkdtemp(prefix=f"wb_{k}_")
+        _out_path = os.path.join(_out_dir, f"{k}_data.csv")
+        df.to_csv(_out_path, index=False)
+        log_artifact(
+            f"{k}_data.csv",
+            f"{k}_data",
+            f"{k} split of dataset",
+            _out_path,
+            run,
+        )
 
 
 if __name__ == "__main__":

@@ -4,6 +4,9 @@ Download from W&B the raw dataset and apply some basic data cleaning, exporting 
 """
 import argparse
 import logging
+import os
+import tempfile
+import glob
 import wandb
 import pandas as pd
 
@@ -18,7 +21,12 @@ def go(args):
     run.config.update(args)
 
     # Download input artifact. This will also log that this script is using this
-    artifact_local_path = run.use_artifact(args.input_artifact).file()
+    # Use explicit safe temp dir to avoid Windows path error caused by ':' in artifact name
+    _artifact_obj = run.use_artifact(args.input_artifact)
+    _safe_root = tempfile.mkdtemp(prefix="wb_")
+    _art_dir = _artifact_obj.download(root=_safe_root)
+    _csv_files = glob.glob(os.path.join(_art_dir, "*.csv"))
+    artifact_local_path = _csv_files[0]
     df = pd.read_csv(artifact_local_path)
 
     # Drop outliers

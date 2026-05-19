@@ -52,7 +52,13 @@ def go(args):
     rf_config['random_state'] = args.random_seed
 
     # Use run.use_artifact(...).file() to get the train and validation artifact
-    trainval_local_path = run.use_artifact(args.trainval_artifact).file()
+    # Use explicit safe temp dir to avoid Windows path error with ':' in artifact name
+    import tempfile, glob as _glob
+    _tv_art = run.use_artifact(args.trainval_artifact)
+    _tv_tmp = tempfile.mkdtemp(prefix="wb_tv_")
+    _tv_dir = _tv_art.download(root=_tv_tmp)
+    _tv_files = _glob.glob(os.path.join(_tv_dir, "*.csv"))
+    trainval_local_path = _tv_files[0]
 
     X = pd.read_csv(trainval_local_path)
     y = X.pop("price")  # this removes the column "price" from X and puts it into y
